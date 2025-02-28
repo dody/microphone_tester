@@ -54,7 +54,7 @@
             max-width: 500px;
             height: 20px;
             background-color: #333;
-            margin-top: 20px;
+            margin: 20px;
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
@@ -65,11 +65,16 @@
             background-color: #03DAC6;
             transition: width 0.1s ease-out;
         }
+        #delaySlider {
+            margin: 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Microphone Tester</h1>
-    <p>Note: Audio from your microphone will be played back with a 1-second delay.</p>
+    <p>Note: Audio from your microphone will be played back with a delay.</p>
+    <label for="delaySlider">Delay: <span id="delayValue"></span> sec</label>
+    <input type="range" id="delaySlider" min="0" max="1" step="0.1" value="0.5">
     <button id="toggle">Start</button>
     <canvas id="visualizer" width="500" height="100"></canvas>
     <div class="volumeBarContainer">
@@ -87,30 +92,21 @@
         let ctx = canvas.getContext("2d");
         let timeDomainBar = document.getElementById("timeDomainBar");
         let button = document.getElementById("toggle");
+        let delaySlider = document.getElementById("delaySlider");
+        let delayValue = document.getElementById("delayValue");
 
-        function draw() {
-            if (!isRunning) return;
-            requestAnimationFrame(draw);
-            let timeData = new Uint8Array(analyser.fftSize);
-            analyser.getByteTimeDomainData(timeData);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath();
-            let sumTime = 0;
-            for (let i = 0; i < timeData.length; i++) {
-                let x = (i / timeData.length) * canvas.width;
-                let y = (timeData[i] / 255) * canvas.height;
-                sumTime += Math.abs(timeData[i] - 128);
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            }
-            ctx.strokeStyle = "white";
-            ctx.stroke();
-            let volumeTime = sumTime / timeData.length;
-            timeDomainBar.style.width = `${(volumeTime / 128) * 100}%`;
+        function updateDelayValue() {
+            delayValue.textContent = delaySlider.value;
         }
+
+        delaySlider.addEventListener("input", () => {
+            updateDelayValue();
+            if (delay) {
+                delay.delayTime.value = parseFloat(delaySlider.value);
+            }
+        });
+
+        updateDelayValue();
 
         button.addEventListener('click', async () => {
             if (!isRunning) {
@@ -118,7 +114,7 @@
                 mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 source = audioContext.createMediaStreamSource(mediaStream);
                 delay = audioContext.createDelay();
-                delay.delayTime.value = 1.0;
+                delay.delayTime.value = parseFloat(delaySlider.value);
                 gain = audioContext.createGain();
                 gain.gain.value = 1.0;
                 analyser = audioContext.createAnalyser();
@@ -143,6 +139,30 @@
                 button.textContent = "Start";
             }
         });
+
+        function draw() {
+            if (!isRunning) return;
+            requestAnimationFrame(draw);
+            let timeData = new Uint8Array(analyser.fftSize);
+            analyser.getByteTimeDomainData(timeData);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            let sumTime = 0;
+            for (let i = 0; i < timeData.length; i++) {
+                let x = (i / timeData.length) * canvas.width;
+                let y = (timeData[i] / 255) * canvas.height;
+                sumTime += Math.abs(timeData[i] - 128);
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.strokeStyle = "white";
+            ctx.stroke();
+            let volumeTime = sumTime / timeData.length;
+            timeDomainBar.style.width = `${(volumeTime / 128) * 100}%`;
+        }
     </script>
 </body>
 </html>
